@@ -20,4 +20,4 @@ if __name__ == '__main__':
         for path in config.get(project, 'Paths').split():
             cutter.add_path(path)
 
-    print(cutter.get_paths())
+    print(cutter.fileset)
