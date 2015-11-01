@@ -3,21 +3,32 @@
 import magic
 import os
 import re
-import shutil
 import subprocess
 
 
 class Cutter(object):
 
     def __init__(self):
-        self.structure = {}
+        self.fileset = set([])
 
     def add_file(self, path):
-        '''Given a path add to structure'''
+        '''Add file to fileset.
+
+        Note:
+            If file is symlink add symlink detination to fileset.
+            If file is x-executable search for Dynamic Dependencies and recursively add.
+
+        Args:
+            path: Path of file to add to fileset.
+
+        Returns:
+            True if successful, False otherwise.
+
+        '''
         assert os.path.exists(path)
 
         mime = magic.from_file(path, mime=True)
-        self.structure.setdefault(mime, set([])).add(path)
+        self.fileset.add(path)
 
         if mime.decode("utf-8") == 'inode/symlink':
             self.add_file(os.path.realpath(path))
@@ -28,13 +39,38 @@ class Cutter(object):
         return True
 
     def add_folder(self, path):
+        '''Add path to fileset.
+
+        Note:
+            If path is folder add all folder and subfolder files to fileset.
+            If path if file add file to fileset.
+
+        Args:
+            path: Path of file or folder to add to fileset.
+
+        Returns:
+            True if successful, False otherwise.
+
+        '''
+        assert os.path.isdir(path)
+
         for root, dirnames, filenames in os.walk(path):
             for files in filenames:
                 file_path = os.path.join(root, files)
                 self.add_file(file_path)
+
         return True
 
     def add_path(self, path):
+        '''Add path to fileset.
+
+        Args:
+            path: Path of folder to walk.
+
+        Returns:
+            True if successful, False otherwise.
+
+        '''
         assert os.path.exists(path)
 
         if os.path.isfile(path):
@@ -42,16 +78,16 @@ class Cutter(object):
         else:
             self.add_folder(path)
 
-    def get_paths(self):
-        paths = []
-        for mime in self.structure:
-            for path in self.structure[mime]:
-                paths.append(path)
-
-        return paths
-
     def ldd(self, path):
-        ''' List Dynamic Dependencies '''
+        '''List Dynamic Dependencies.
+
+        Args:
+            path: Path of x-executable file.
+
+        Returns:
+            List of all Dynamic Dependencies needed for executable
+
+        '''
         ldd_out = subprocess.check_output(['ldd', str(path)])
 
         libraries = []
@@ -67,14 +103,3 @@ class Cutter(object):
         libraries.remove('')
 
         return libraries
-
-
-def copy_files(filenames):
-    for files in filenames:
-        rel_path = os.path.relpath(files, '/')
-        dst_path = os.path.join('build', rel_path)
-
-        if not os.path.exists(os.path.dirname(dst_path)):
-            os.makedirs(os.path.dirname(dst_path))
-
-        shutil.copy2(files, dst_path)
