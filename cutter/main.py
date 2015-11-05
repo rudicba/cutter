@@ -28,4 +28,3 @@ if __name__ == '__main__':
         dst_path = os.path.join(destination, os.path.relpath(file_path, '/'))
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
         shutil.copy2(file_path, dst_path)
-        print('Copying: %s to %s' % (file_path, dst_path))
